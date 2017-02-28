@@ -3,6 +3,7 @@
 #include <mpi.h>
 #include <cstring>
 #include <cstdlib>
+#include <chrono>
 
 #include <iostream>
 
@@ -84,7 +85,6 @@ int main(int argc, char ** argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 	//Parse arguments
-	///TODO: Probably a better argument parser
 	SPTE_Proxy::RunConfig runConfig = processArgs(argc, argv);
 
 	//Set up 2D Cartesian Topology if needed (p2p4)
@@ -115,7 +115,7 @@ int main(int argc, char ** argv)
 	for(int t = 0; t < runConfig.numIters; t++)
 	{
 		//Start outer (full task) timer
-		///TODO
+		std::chrono::time_point<std::chrono::system_clock> oStart = std::chrono::system_clock::now();
 
 		//Get inputs if needed
 		if(runConfig.depType == SPTE_Proxy::P2P2)
@@ -130,13 +130,15 @@ int main(int argc, char ** argv)
 		}
 
 		//Start inner (compute) timer
-		///TODO
+		std::chrono::time_point<std::chrono::system_clock> iStart = std::chrono::system_clock::now();
 
 		//Execute pseudo-task
 		///TODO
 
 		//End inner (compute) timer
-		///TODO
+		std::chrono::time_point<std::chrono::system_clock> iEnd = std::chrono::system_clock::now();
+		std::chrono::duration<double> iDiff = iEnd-iStart;
+		computeTimer += iDiff.count();
 
 		//Send outputs to be inputs for next round
 		if(runConfig.depType == SPTE_Proxy::P2P2)
@@ -151,16 +153,26 @@ int main(int argc, char ** argv)
 		}
 
 		//End outer (full task) timer
-		///TODO
+		std::chrono::time_point<std::chrono::system_clock> oEnd = std::chrono::system_clock::now();
+		std::chrono::duration<double> oDiff = oEnd-oStart;
+		taskTimer += oDiff.count();
 	}
 
 	//Average Timers
 	taskTimer = taskTimer / runConfig.numIters;
 	computeTimer = computeTimer / runConfig.numIters;
+	double globalTaskTime, globalComputeTime;
 
 	//Reduce on timers
-	///TODO
+	MPI_Reduce(&taskTimer, &globalTaskTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+	MPI_Reduce(&computeTimer, &globalComputeTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
+	//If rank 0, output times
+	if(rank == 0)
+	{
+		std::cout << "Max Avg Task Time\t" << globalTaskTime << std::endl;
+		std::cout << "Max Avg Compute Time\t" << globalComputeTime << std::endl;
+	}
 
 	//Add a superfluous barrier to ensure that all work is done
 	MPI_Barrier(MPI_COMM_WORLD);
