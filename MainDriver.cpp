@@ -16,6 +16,7 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 	retVal.depType = EMBARASSING;
 	retVal.depSize = 0;
 	retVal.taskSize = 128;
+	retVal.numIters = 16;
 
 	//For each argument
 	for(int i = 1; i < argc; i++)
@@ -32,6 +33,7 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 			std::cout << "-dep=[EMBARASSING,P2P2,P2P4]" << std::endl;
 			std::cout << "-arg=[integer size of arguments/dependencies in chars]" << std::endl;
 			std::cout << "-task=[integer size of one dimension of task matrix]" << std::endl;
+			std::cout << "-iters=[number of iterations of test to run for averaged time]" << std::endl;
 		}
 		if(argval != nullptr)
 		{
@@ -58,8 +60,11 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 			{
 				retVal.taskSize = atoi(argval);
 			}
+			else if(strcmp(argname, "-iters") == 0)
+			{
+				retVal.numIters = atoi(argval);
+			}
 		}
-
 	}
 	return retVal;
 }
@@ -68,7 +73,6 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 
 int main(int argc, char ** argv)
 {
-	using SPTE_Proxy::RunConfig;
 	using SPTE_Proxy::processArgs;
 
 	//Initialize MPI
@@ -81,8 +85,82 @@ int main(int argc, char ** argv)
 
 	//Parse arguments
 	///TODO: Probably a better argument parser
-	RunConfig runConfig = processArgs(argc, argv);
-	
+	SPTE_Proxy::RunConfig runConfig = processArgs(argc, argv);
+
+	//Set up 2D Cartesian Topology if needed (p2p4)
+	int dims[2];
+	int periods[2] = {1, 1};
+	int cartRank;
+	int coords[2];
+	MPI_Comm cartComm;
+	if(runConfig.depType == SPTE_Proxy::P2P4)
+	{
+		MPI_Dims_create(nProcs, 2, dims);
+		MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 1, &cartComm);
+		MPI_Comm_rank(cartComm, &cartRank);
+		MPI_Cart_coords(cartComm, cartRank, 2, coords);
+	}
+
+	//Initialize timers
+	double taskTimer = 0.0;
+	double computeTimer = 0.0;
+
+	//Pre-seed first round of inputs
+	///TODO: pre-seed first round of inputs
+
+	//Add an initial barrier before all work to maximize contention
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	//Run numIters times
+	for(int t = 0; t < runConfig.numIters; t++)
+	{
+		//Start outer (full task) timer
+		///TODO
+
+		//Get inputs if needed
+		if(runConfig.depType == SPTE_Proxy::P2P2)
+		{
+			//Recv from rank -1 and +1
+			///TODO
+		}
+		else if(runConfig.depType == SPTE_Proxy::P2P4)
+		{
+			//Use cart coords to recv +/-1x and +/-1y
+			///TODO
+		}
+
+		//Start inner (compute) timer
+		///TODO
+
+		//Execute pseudo-task
+		///TODO
+
+		//End inner (compute) timer
+		///TODO
+
+		//Send outputs to be inputs for next round
+		if(runConfig.depType == SPTE_Proxy::P2P2)
+		{
+			//Send to rank -1 and +1
+			///TODO
+		}
+		else if(runConfig.depType == SPTE_Proxy::P2P4)
+		{
+			//Use cart coords to send to +/-1x and +/-1y
+			///TODO
+		}
+
+		//End outer (full task) timer
+		///TODO
+	}
+
+	//Average Timers
+	taskTimer = taskTimer / runConfig.numIters;
+	computeTimer = computeTimer / runConfig.numIters;
+
+	//Reduce on timers
+	///TODO
+
 
 	//Add a superfluous barrier to ensure that all work is done
 	MPI_Barrier(MPI_COMM_WORLD);

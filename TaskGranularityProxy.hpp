@@ -13,7 +13,9 @@ namespace SPTE_Proxy
 		DepType depType;
 		unsigned int depSize;
 		unsigned int taskSize;
+		unsigned int numIters;
 	};
+
 }
 
 #endif
