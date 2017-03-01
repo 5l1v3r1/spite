@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include <iostream>
+#include <fstream>
 
 namespace SPTE_Proxy
 {
@@ -107,6 +108,19 @@ int main(int argc, char ** argv)
 
 	//Pre-seed first round of inputs
 	///TODO: pre-seed first round of inputs
+	//Send outputs to be inputs for next round
+	if(runConfig.depType == SPTE_Proxy::P2P2)
+	{
+		//Send to rank -1 and +1
+		///TODO
+	}
+	else if(runConfig.depType == SPTE_Proxy::P2P4)
+	{
+		//Use cart coords to send to +/-1x and +/-1y
+		///TODO
+	}
+
+
 
 	//Add an initial barrier before all work to maximize contention
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -161,17 +175,26 @@ int main(int argc, char ** argv)
 	//Average Timers
 	taskTimer = taskTimer / runConfig.numIters;
 	computeTimer = computeTimer / runConfig.numIters;
-	double globalTaskTime, globalComputeTime;
 
 	//Reduce on timers
-	MPI_Reduce(&taskTimer, &globalTaskTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-	MPI_Reduce(&computeTimer, &globalComputeTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-
+	double * globalTaskTime, * globalComputeTime;
+	if(rank == 0)
+	{
+		globalTaskTime = new double[nProcs];
+		globalComputeTime = new double[nProcs];
+	}
+	MPI_Gather(&taskTimer, 1, MPI_DOUBLE, globalTaskTime, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Gather(&computeTimer, 1, MPI_DOUBLE, globalComputeTime, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	//If rank 0, output times
 	if(rank == 0)
 	{
-		std::cout << "Max Avg Task Time\t" << globalTaskTime << std::endl;
-		std::cout << "Max Avg Compute Time\t" << globalComputeTime << std::endl;
+		std::ofstream resFile("SPTE_Results.out");
+		resFile << "#Task\tCompute" << std::endl;
+		for(int i = 0; i < nProcs; i++)
+		{
+			resFile << globalTaskTime[i] << "\t" << globalComputeTime[i] << std::endl;
+		}
+		resFile.close();
 	}
 
 	//Add a superfluous barrier to ensure that all work is done
