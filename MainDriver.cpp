@@ -1,4 +1,5 @@
 #include "TaskGranularityProxy.hpp"
+#include "SyntheticTask.hpp"
 
 #include <mpi.h>
 #include <cstring>
@@ -28,6 +29,10 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 		strcpy(argb, argv[i]);
 		//Split string to collect the name and value
 		char * argname = std::strtok(argv[i], "=");
+		if(std::strrchr(argname, '-') != nullptr)
+		{
+			argname = std::strrchr(argname, '-')+1;
+		}
 		char * argval = std::strtok(nullptr, "=");
 		//Now for a simple switch to set values
 		if(strcmp(argname, "help") == 0)
@@ -39,7 +44,7 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 		}
 		if(argval != nullptr)
 		{
-			if(strcmp(argname, "-dep") == 0)
+			if(strcmp(argname, "dep") == 0)
 			{
 				if(strcmp(argval, "EMBARASSING") == 0)
 				{
@@ -54,15 +59,15 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 					retVal.depType = P2P4;
 				}
 			}
-			else if(strcmp(argname, "-arg") == 0)
+			else if(strcmp(argname, "arg") == 0)
 			{
 				retVal.depSize = atoi(argval);
 			}
-			else if(strcmp(argname, "-task") == 0)
+			else if(strcmp(argname, "task") == 0)
 			{
 				retVal.taskSize = atoi(argval);
 			}
-			else if(strcmp(argname, "-iters") == 0)
+			else if(strcmp(argname, "iters") == 0)
 			{
 				retVal.numIters = atoi(argval);
 			}
@@ -147,7 +152,7 @@ int main(int argc, char ** argv)
 		std::chrono::time_point<std::chrono::system_clock> iStart = std::chrono::system_clock::now();
 
 		//Execute pseudo-task
-		///TODO
+		SPTE_Proxy::performSyntheticWorkload(runConfig);
 
 		//End inner (compute) timer
 		std::chrono::time_point<std::chrono::system_clock> iEnd = std::chrono::system_clock::now();

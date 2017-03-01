@@ -3,7 +3,7 @@ MPICXX=mpicxx
 CFLAGS=-O3 --std=c++11
 LDFLAGS=
 
-CPPSOURCES=MainDriver.cpp
+CPPSOURCES=MainDriver.cpp SyntheticTask.cpp
 
 OFILES = ${CPPSOURCES:.cpp=.o}
 
