@@ -113,7 +113,6 @@ int main(int argc, char ** argv)
 
 	//Pre-seed first round of inputs
 	///TODO: pre-seed first round of inputs
-	//Send outputs to be inputs for next round
 	if(runConfig.depType == SPTE_Proxy::P2P2)
 	{
 		//Send to rank -1 and +1

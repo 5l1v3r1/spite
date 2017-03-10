@@ -1,9 +1,7 @@
 #include "SyntheticTask.hpp"
 
-
 void SPTE_Proxy::performSyntheticWorkload(SPTE_Proxy::RunConfig &runConfig)
 {
-	///TODO: Investigate to ensure this is not getting optimized away...
 	double A[runConfig.taskSize*runConfig.taskSize];
 	double B[runConfig.taskSize*runConfig.taskSize];
 	double C[runConfig.taskSize*runConfig.taskSize];
@@ -21,5 +19,4 @@ void SPTE_Proxy::performSyntheticWorkload(SPTE_Proxy::RunConfig &runConfig)
 		}
 	}
 }
-
 
