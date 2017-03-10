@@ -10,10 +10,10 @@ namespace SPTE_Proxy
 
 	struct RunConfig
 	{
-		DepType depType;
 		unsigned int depSize;
 		unsigned int taskSize;
 		unsigned int numIters;
+		unsigned int dim;
 	};
 
 }

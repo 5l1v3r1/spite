@@ -16,7 +16,7 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 {
 	RunConfig retVal;
 	//Set default values
-	retVal.depType = EMBARASSING;
+	retVal.dim = 0;
 	retVal.depSize = 0;
 	retVal.taskSize = 128;
 	retVal.numIters = 16;
@@ -37,27 +37,16 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 		//Now for a simple switch to set values
 		if(strcmp(argname, "help") == 0)
 		{
-			std::cout << "-dep=[EMBARASSING,P2P2,P2P4]" << std::endl;
+			std::cout << "-dim=[integer number of dimensions in cartesian space]" << std::endl;
 			std::cout << "-arg=[integer size of arguments/dependencies in chars]" << std::endl;
 			std::cout << "-task=[integer size of one dimension of task matrix]" << std::endl;
 			std::cout << "-iters=[number of iterations of test to run for averaged time]" << std::endl;
 		}
 		if(argval != nullptr)
 		{
-			if(strcmp(argname, "dep") == 0)
+			if(strcmp(argname, "dim") == 0)
 			{
-				if(strcmp(argval, "EMBARASSING") == 0)
-				{
-					retVal.depType = EMBARASSING;
-				}
-				else if(strcmp(argval, "PSP2") == 0)
-				{
-					retVal.depType = P2P2;
-				}
-				else if(strcmp(argval, "P2P4") == 0)
-				{
-					retVal.depType = P2P4;
-				}
+				retVal.dim = atoi(argval);
 			}
 			else if(strcmp(argname, "arg") == 0)
 			{
@@ -93,18 +82,23 @@ int main(int argc, char ** argv)
 	//Parse arguments
 	SPTE_Proxy::RunConfig runConfig = processArgs(argc, argv);
 
-	//Set up 2D Cartesian Topology if needed (p2p4)
-	int dims[2];
-	int periods[2] = {1, 1};
-	int cartRank;
-	int coords[2];
-	MPI_Comm cartComm;
-	if(runConfig.depType == SPTE_Proxy::P2P4)
+	//Set up Cart topo if not 0-D
+	int dims[runConfig.dim];
+	int periods[runConfig.dim];
+	for(int i = 0; i < runConfig.dim; i++)
 	{
-		MPI_Dims_create(nProcs, 2, dims);
-		MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 1, &cartComm);
+		periods[i] = 1;
+	}
+	int cartRank;
+	int coords[runConfig.dim];
+	MPI_Comm cartComm;
+	///TODO: Test cart create with 0 dimensions. Probably keep the if
+	if(runConfig.dim != 0)
+	{
+		MPI_Dims_create(nProcs, runConfig.dim, dims);
+		MPI_Cart_create(MPI_COMM_WORLD, runConfig.dim, dims, periods, 1, &cartComm);
 		MPI_Comm_rank(cartComm, &cartRank);
-		MPI_Cart_coords(cartComm, cartRank, 2, coords);
+		MPI_Cart_coords(cartComm, cartRank, runConfig.dim, coords);
 	}
 
 	//Initialize timers
@@ -113,14 +107,8 @@ int main(int argc, char ** argv)
 
 	//Pre-seed first round of inputs
 	///TODO: pre-seed first round of inputs
-	if(runConfig.depType == SPTE_Proxy::P2P2)
+	if(runConfig.depSize != 0)
 	{
-		//Send to rank -1 and +1
-		///TODO
-	}
-	else if(runConfig.depType == SPTE_Proxy::P2P4)
-	{
-		//Use cart coords to send to +/-1x and +/-1y
 		///TODO
 	}
 
@@ -136,14 +124,8 @@ int main(int argc, char ** argv)
 		std::chrono::time_point<std::chrono::system_clock> oStart = std::chrono::system_clock::now();
 
 		//Get inputs if needed
-		if(runConfig.depType == SPTE_Proxy::P2P2)
+		if(runConfig.depSize != 0)
 		{
-			//Recv from rank -1 and +1
-			///TODO
-		}
-		else if(runConfig.depType == SPTE_Proxy::P2P4)
-		{
-			//Use cart coords to recv +/-1x and +/-1y
 			///TODO
 		}
 
@@ -159,14 +141,8 @@ int main(int argc, char ** argv)
 		computeTimer += iDiff.count();
 
 		//Send outputs to be inputs for next round
-		if(runConfig.depType == SPTE_Proxy::P2P2)
+		if(runConfig.depSize !=0)
 		{
-			//Send to rank -1 and +1
-			///TODO
-		}
-		else if(runConfig.depType == SPTE_Proxy::P2P4)
-		{
-			//Use cart coords to send to +/-1x and +/-1y
 			///TODO
 		}
 
