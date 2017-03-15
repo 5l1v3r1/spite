@@ -1,6 +1,6 @@
 MPICXX=mpicxx
 
-CFLAGS=-O3 --std=c++11
+CFLAGS=-g --std=c++11
 LDFLAGS=
 
 CPPSOURCES=MainDriver.cpp SyntheticTask.cpp

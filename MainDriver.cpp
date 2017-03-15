@@ -65,11 +65,67 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 	return retVal;
 }
 
+void wait_comms(int dim, MPI_Request *reqBuffer, MPI_Comm &cartComm)
+{
+	MPI_Status statuses[2*dim*2];
+	MPI_Waitall(2*dim*2, reqBuffer, statuses);
+}
+
+void comm_neighbors(int dim, int * coords, double ** buffers, unsigned int bufSize, MPI_Request * reqs, MPI_Comm &cartComm, bool isSend)
+{
+	///TODO: Send to self (for dim0)?
+	//Send to neighbors
+	if(dim > 0)
+	{
+		int dest[dim];
+		for(int i = 0; i < dim; i++)
+		{
+			dest[i] = coords[i];
+		}
+		int drank;
+		//For simplicity we don't consider diagonals
+		for(int i = 0; i < dim; i++)
+		{
+			//Left
+			dest[i] = dest[i] - 1;
+			MPI_Cart_rank(cartComm, dest, &drank);
+			if(isSend)
+			{
+				//Send
+				MPI_Isend(buffers[0 + i*2], bufSize, MPI_DOUBLE, drank, GENERIC_MESSAGE_TAG, cartComm, &reqs[0 + i*2]);
+			}
+			else
+			{
+				//Recv
+				MPI_Irecv(buffers[0 + i*2], bufSize, MPI_DOUBLE, drank, GENERIC_MESSAGE_TAG, cartComm, &reqs[0 + i*2]);
+			}
+			//Right
+			dest[i] = dest[i] + 2;
+			MPI_Cart_rank(cartComm, dest, &drank);
+			if(isSend)
+			{
+				//Send
+				MPI_Isend(buffers[1 + i*2], bufSize, MPI_DOUBLE, drank, GENERIC_MESSAGE_TAG, cartComm, &reqs[1 + i*2]);
+			}
+			else
+			{
+				//Recv
+				MPI_Irecv(buffers[1 + i*2], bufSize, MPI_DOUBLE, drank, GENERIC_MESSAGE_TAG, cartComm, &reqs[1 + i*2]);
+			}
+			//Center
+			dest[i] = dest[i] - 1;
+		}
+	}
+	return;
+}
+
 }
 
 int main(int argc, char ** argv)
 {
 	using SPTE_Proxy::processArgs;
+	using SPTE_Proxy::comm_neighbors;
+	using SPTE_Proxy::wait_comms;
 
 	//Initialize MPI
 	MPI_Init(&argc, &argv);
@@ -88,6 +144,12 @@ int main(int argc, char ** argv)
 	for(int i = 0; i < runConfig.dim; i++)
 	{
 		periods[i] = 1;
+		dims[i] = nProcs / runConfig.dim;
+		if(i == runConfig.dim - 1)
+		{
+			dims[i] += nProcs % runConfig.dim;
+		}
+		std::cout << i << " = " << dims[i] << std::endl;
 	}
 	int cartRank;
 	int coords[runConfig.dim];
@@ -105,14 +167,23 @@ int main(int argc, char ** argv)
 	double taskTimer = 0.0;
 	double computeTimer = 0.0;
 
-	//Pre-seed first round of inputs
-	///TODO: pre-seed first round of inputs
-	if(runConfig.depSize != 0)
+	//Set up argument and comms buffers
+	MPI_Request reqBuffers[2*runConfig.dim*2];
+	MPI_Request * sendReqs = &reqBuffers[0];
+	MPI_Request * recvReqs = &reqBuffers[runConfig.dim*2];
+	double * sendBuffs[runConfig.dim * 2];
+	double * recvBuffs[runConfig.dim * 2];
+	for(int i = 0; i < runConfig.dim*2; i++)
 	{
-		///TODO
+		sendBuffs[i] = new double[runConfig.taskSize];
+		recvBuffs[i] = new double[runConfig.taskSize];
 	}
 
-
+	//Pre-seed first round of inputs
+	if(runConfig.depSize != 0)
+	{
+		comm_neighbors(runConfig.dim, coords, sendBuffs, runConfig.taskSize, sendReqs, cartComm, true);
+	}
 
 	//Add an initial barrier before all work to maximize contention
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -126,8 +197,12 @@ int main(int argc, char ** argv)
 		//Get inputs if needed
 		if(runConfig.depSize != 0)
 		{
-			///TODO
+			comm_neighbors(runConfig.dim, coords, recvBuffs, runConfig.taskSize, recvReqs, cartComm, true);
 		}
+
+		//Wait on (previous) sends and (current) recvs
+		///TODO: Consider not waiting on sends if possible for fairness
+		wait_comms(runConfig.dim, reqBuffers, cartComm);
 
 		//Start inner (compute) timer
 		std::chrono::time_point<std::chrono::system_clock> iStart = std::chrono::system_clock::now();
@@ -143,7 +218,7 @@ int main(int argc, char ** argv)
 		//Send outputs to be inputs for next round
 		if(runConfig.depSize !=0)
 		{
-			///TODO
+			comm_neighbors(runConfig.dim, coords, sendBuffs, runConfig.taskSize, sendReqs, cartComm, true);
 		}
 
 		//End outer (full task) timer

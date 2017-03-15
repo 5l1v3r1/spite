@@ -3,10 +3,7 @@
 
 namespace SPTE_Proxy
 {
-	enum DepType
-	{
-		EMBARASSING, P2P2, P2P4
-	};
+	const int GENERIC_MESSAGE_TAG = 71;
 
 	struct RunConfig
 	{
