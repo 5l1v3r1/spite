@@ -16,8 +16,8 @@ SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 {
 	RunConfig retVal;
 	//Set default values
-	retVal.dim = 0;
-	retVal.depSize = 0;
+	retVal.dim = 1;
+	retVal.depSize = 16;
 	retVal.taskSize = 128;
 	retVal.numIters = 16;
 
@@ -71,24 +71,18 @@ void wait_comms(int dim, MPI_Request *reqBuffer, MPI_Comm &cartComm)
 	MPI_Waitall(2*dim*2, reqBuffer, statuses);
 }
 
-void comm_neighbors(int dim, int * coords, double ** buffers, unsigned int bufSize, MPI_Request * reqs, MPI_Comm &cartComm, bool isSend)
+void comm_neighbors(int dim, int cartRank, double ** buffers, unsigned int bufSize, MPI_Request * reqs, MPI_Comm &cartComm, bool isSend)
 {
 	///TODO: Send to self (for dim0)?
 	//Send to neighbors
 	if(dim > 0)
 	{
-		int dest[dim];
-		for(int i = 0; i < dim; i++)
-		{
-			dest[i] = coords[i];
-		}
-		int drank;
 		//For simplicity we don't consider diagonals
 		for(int i = 0; i < dim; i++)
 		{
-			//Left
-			dest[i] = dest[i] - 1;
-			MPI_Cart_rank(cartComm, dest, &drank);
+			int drank;
+			//-1
+			MPI_Cart_shift(cartComm, i, -1, &cartRank, &drank);
 			if(isSend)
 			{
 				//Send
@@ -99,9 +93,8 @@ void comm_neighbors(int dim, int * coords, double ** buffers, unsigned int bufSi
 				//Recv
 				MPI_Irecv(buffers[0 + i*2], bufSize, MPI_DOUBLE, drank, GENERIC_MESSAGE_TAG, cartComm, &reqs[0 + i*2]);
 			}
-			//Right
-			dest[i] = dest[i] + 2;
-			MPI_Cart_rank(cartComm, dest, &drank);
+			//+1
+			MPI_Cart_shift(cartComm, i, 1, &cartRank, &drank);
 			if(isSend)
 			{
 				//Send
@@ -112,8 +105,6 @@ void comm_neighbors(int dim, int * coords, double ** buffers, unsigned int bufSi
 				//Recv
 				MPI_Irecv(buffers[1 + i*2], bufSize, MPI_DOUBLE, drank, GENERIC_MESSAGE_TAG, cartComm, &reqs[1 + i*2]);
 			}
-			//Center
-			dest[i] = dest[i] - 1;
 		}
 	}
 	return;
@@ -152,7 +143,6 @@ int main(int argc, char ** argv)
 		std::cout << i << " = " << dims[i] << std::endl;
 	}
 	int cartRank;
-	int coords[runConfig.dim];
 	MPI_Comm cartComm;
 	///TODO: Test cart create with 0 dimensions. Probably keep the if
 	if(runConfig.dim != 0)
@@ -160,7 +150,6 @@ int main(int argc, char ** argv)
 		MPI_Dims_create(nProcs, runConfig.dim, dims);
 		MPI_Cart_create(MPI_COMM_WORLD, runConfig.dim, dims, periods, 1, &cartComm);
 		MPI_Comm_rank(cartComm, &cartRank);
-		MPI_Cart_coords(cartComm, cartRank, runConfig.dim, coords);
 	}
 
 	//Initialize timers
@@ -182,7 +171,7 @@ int main(int argc, char ** argv)
 	//Pre-seed first round of inputs
 	if(runConfig.depSize != 0)
 	{
-		comm_neighbors(runConfig.dim, coords, sendBuffs, runConfig.taskSize, sendReqs, cartComm, true);
+		comm_neighbors(runConfig.dim, cartRank, sendBuffs, runConfig.depSize, sendReqs, cartComm, true);
 	}
 
 	//Add an initial barrier before all work to maximize contention
@@ -197,12 +186,15 @@ int main(int argc, char ** argv)
 		//Get inputs if needed
 		if(runConfig.depSize != 0)
 		{
-			comm_neighbors(runConfig.dim, coords, recvBuffs, runConfig.taskSize, recvReqs, cartComm, true);
+			comm_neighbors(runConfig.dim, cartRank, recvBuffs, runConfig.depSize, recvReqs, cartComm, true);
 		}
 
 		//Wait on (previous) sends and (current) recvs
 		///TODO: Consider not waiting on sends if possible for fairness
-		wait_comms(runConfig.dim, reqBuffers, cartComm);
+		if(runConfig.depSize != 0)
+		{
+			wait_comms(runConfig.dim, reqBuffers, cartComm);
+		}
 
 		//Start inner (compute) timer
 		std::chrono::time_point<std::chrono::system_clock> iStart = std::chrono::system_clock::now();
@@ -218,7 +210,7 @@ int main(int argc, char ** argv)
 		//Send outputs to be inputs for next round
 		if(runConfig.depSize !=0)
 		{
-			comm_neighbors(runConfig.dim, coords, sendBuffs, runConfig.taskSize, sendReqs, cartComm, true);
+			comm_neighbors(runConfig.dim, cartRank, sendBuffs, runConfig.depSize, sendReqs, cartComm, true);
 		}
 
 		//End outer (full task) timer
