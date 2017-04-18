@@ -16,6 +16,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 	message(FATAL_ERROR "In source build is not supported, please 'git clean` and build out of source")
 endif()
 
+#Add the common library
+add_subdirectory(SPTE_lib)
+include_directories(${CMAKE_SOURCE_DIR}/SPTE_lib)
+
+#If we have MPI, build the MPI reference
 find_package(MPI)
 if(MPI_CXX_FOUND)
 	add_subdirectory(MPI_Reference)

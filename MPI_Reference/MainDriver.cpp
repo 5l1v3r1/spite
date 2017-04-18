@@ -12,6 +12,8 @@
 namespace SPTE_Proxy
 {
 
+const int GENERIC_MESSAGE_TAG = 71;
+
 SPTE_Proxy::RunConfig processArgs(int argc, char ** &argv)
 {
 	RunConfig retVal;

@@ -3,8 +3,6 @@
 
 namespace SPTE_Proxy
 {
-	const int GENERIC_MESSAGE_TAG = 71;
-
 	struct RunConfig
 	{
 		unsigned int depSize;
@@ -12,7 +10,6 @@ namespace SPTE_Proxy
 		unsigned int numIters;
 		unsigned int dim;
 	};
-
 }
 
 #endif
