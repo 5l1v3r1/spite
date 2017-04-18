@@ -140,7 +140,6 @@ int main(int argc, char ** argv)
 		{
 			dims[i] += nProcs % runConfig.dim;
 		}
-		std::cout << i << " = " << dims[i] << std::endl;
 	}
 	int cartRank;
 	MPI_Comm cartComm;
