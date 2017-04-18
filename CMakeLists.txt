@@ -17,8 +17,8 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 endif()
 
 #Add the common library
-add_subdirectory(SPTE_lib)
 include_directories(${CMAKE_SOURCE_DIR}/SPTE_lib)
+add_subdirectory(SPTE_lib)
 
 #If we have MPI, build the MPI reference
 find_package(MPI)
