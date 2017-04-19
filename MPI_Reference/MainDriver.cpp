@@ -1,6 +1,7 @@
 #include "TaskGranularityProxy.hpp"
 #include "SyntheticTask.hpp"
 #include "ProcessArgs.hpp"
+#include "OutputResults.hpp"
 
 #include <mpi.h>
 #include <chrono>
@@ -175,13 +176,7 @@ int main(int argc, char ** argv)
 	//If rank 0, output times
 	if(rank == 0)
 	{
-		std::ofstream resFile("SPTE_Results.out");
-		resFile << "#Task\tCompute" << std::endl;
-		for(int i = 0; i < nProcs; i++)
-		{
-			resFile << globalTaskTime[i] << "\t" << globalComputeTime[i] << std::endl;
-		}
-		resFile.close();
+		SPTE_Proxy::writeSPTEResults(globalTaskTime, globalComputeTime, runConfig,  nProcs);
 	}
 
 	//Add a superfluous barrier to ensure that all work is done
